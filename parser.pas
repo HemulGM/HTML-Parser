@@ -16,6 +16,7 @@
 | All Rights Reserved.                                                         |
 |   Last Modified:                                                             |
 |     25.10.2014, Sandbil                                                      |
+|     15.04.2020, HemulGM                                                      |
 |==============================================================================|
 | History: see README                                                          |
 |==============================================================================|}
@@ -26,669 +27,620 @@ unit parser;
 interface
 
 uses
-  System.Classes, System.RegularExpressionsCore, System.Generics.Collections,
-  System.Contnrs, System.StrUtils, System.SysUtils;
-
-
+  System.Classes, System.RegularExpressionsConsts, System.RegularExpressionsCore, System.Generics.Collections,
+  System.StrUtils, System.SysUtils;
 
 type
-  TNodeList = class;
-  TChildList=class;
   TDomTreeNode = class;
 
+  TDomTreeNodeList = class;
 
+  TTagItem = array[0..3] of string;
 
   TDomTree = class
   private
     FCount: Integer;
-    fParseErr: TStringList;
-    fRootNode: TDomTreeNode;
+    FParseErr: TStringList;
+    FRootNode: TDomTreeNode;
   public
     constructor Create;
-    destructor destroy; override;
-    property Count: Integer read fCount;
-    property RootNode: TDomTreeNode read fRootNode;
-    property ParseErr: TStringList read fParseErr;
+    destructor Destroy; override;
+    property Count: Integer read FCount;
+    property RootNode: TDomTreeNode read FRootNode;
+    property ParseErr: TStringList read FParseErr;
   end;
 
   TDomTreeNode = class(TObject)
   private
-   fTag: string;
-   fAttributesTxt: string;
-   fAttributes: TDictionary<string, string>;
-   fText: string;
-   fTypeTag: string;
-   fChild: TChildList;
-   fParent: Pointer;
-   fOwner: TDomTree;
+    FTag: string;
+    FAttributesTxt: string;
+    FAttributes: TDictionary<string, string>;
+    FText: string;
+    FTypeTag: string;
+    FChild: TDomTreeNodeList;
+    FParent: TDomTreeNode;
+    FOwner: TDomTree;
   public
-    property Tag: string read fTag;
-    property AttributesTxt: string read fAttributesTxt;
-    property Attributes: TDictionary<string, string> read fAttributes;
-    property Text: string read fText;
-    property TypeTag: string read fTypeTag;
-    property Child: TChildList read fChild;
-    property Parent: Pointer read fParent;
-    property Owner: TDomTree read fOwner;
-
-    constructor create(hOwner: TDomTree; hParent: Pointer; hTag, hAttrTxt: string; hAttr:
-        TDictionary<string, string>; hTypeTag, hText: string);
-    destructor destroy; override;
-    function FindNode(hNameTag: string; hIndex:integer; hAttrTxt: String;
-        hAnyLevel: Boolean; dListNode: TNodeList): Boolean;
-    function FindTagOfIndex(hNameTag: String; hIndex:integer; hAnyLevel:
-        Boolean; dListNode: TNodeList): Boolean;
-    function FindXPath(hXPathTxt: String; dListNode: TNodeList;
-        dListValue:TStringList): Boolean;
-    function GetAttrValue(hAttrName:string): string;
-    function GetComment(hIndex: Integer): string;
-    function GetTagName: string;
-    function GetTextValue(hIndex:Integer): string;
-    function GetXPath(hRelative:boolean): string;
-    function RunParse(HtmlTxt: String): Boolean;
-  end;
-
-  TChildList = class(TList)
-  private
-    function Get(Index: Integer): TDomTreeNode;
-  public
+    property Tag: string read FTag;
+    property AttributesTxt: string read FAttributesTxt;
+    property Attributes: TDictionary<string, string> read FAttributes;
+    property Text: string read FText;
+    property TypeTag: string read FTypeTag;
+    property Child: TDomTreeNodeList read FChild;
+    property Parent: TDomTreeNode read FParent;
+    property Owner: TDomTree read FOwner;
+    constructor Create(AOwner: TDomTree; AParent: Pointer; ATag: string; AAttrTxt: string = ''; AAttr: TDictionary<
+      string, string> = nil; ATypeTag: string = ''; AText: string = '');
     destructor Destroy; override;
-    property Items[Index: Integer]: TDomTreeNode read Get; default;
+    /// <summary>
+    /// FindNode
+    /// </summary>
+    /// <param name="NameTag: string">name Tag</param>
+    /// <param name="Index: integer">number of a tag one after another (0 - all tag, 1 - each first ..)</param>
+    /// <param name="AnyLevel: Boolean">attribute. ex. alt=1</param>
+    /// <param name="ListNode: TNodeList">return TNodeList of TDomTreeNode</param>
+    function FindNode(NameTag: string; Index: integer; AttrTxt: string; AnyLevel: Boolean; ListNode: TDomTreeNodeList): Boolean;
+    /// <summary>
+    /// FindTagOfIndex
+    /// </summary>
+    /// <param name="NameTag: string">name Tag (* - any tag, except text tag)</param>
+    /// <param name="Index: integer">number of a tag one after another (0 - all tag, 1 - each first ..)</param>
+    /// <param name="AnyLevel: Boolean">true - all level after start node; false - only one child level after start node</param>
+    /// <param name="ListNode: TNodeList">return TNodeList of TDomTreeNode</param>
+    function FindTagOfIndex(NameTag: string; Index: integer; AnyLevel: Boolean; ListNode: TDomTreeNodeList): Boolean;
+    function FindPath(Path: string; ListNode: TDomTreeNodeList; ListValue: TStringList): Boolean;
+    function GetAttrValue(AttrName: string): string;
+    function GetComment(Index: Integer): string;
+    function GetTagName: string;
+    function GetTextValue(Index: Integer): string;
+    function GetPath(Relative: boolean): string;
+    function Parse(HtmlTxt: string): Boolean;
   end;
 
-  TNodeList = class(TList)
-  private
-    function Get(Index: Integer): TDomTreeNode;
-  public
-    property Items[Index: Integer]: TDomTreeNode read Get; default;
-  end;
+  TDomTreeNodeList = class(TList<TDomTreeNode>);
 
-
-  PPrmRec=^TPrmRec;
   TPrmRec = record
     TagName: string;
-    ind: Integer;
+    Index: Integer;
     Attr: string;
     AnyLevel: Boolean;
   end;
 
-  TPrmRecList = class(TList)
-  private
-    function Get(Index: Integer): PPrmRec;
-  public
-    destructor Destroy; override;
-    property Items[Index: Integer]: PPrmRec read Get; default;
-  end;
-
-
-
-
+  TPrmRecList = TList<TPrmRec>;
 
 implementation
 
 { TDomTree }
 
-{
-*********************************** TDomTree ***********************************
-}
 constructor TDomTree.Create;
 begin
-  fParseErr:= TStringList.Create;
-  fRootnode:= TDomTreeNode.Create(self,self,'Root','',nil,'','');
-  FCount:=0;
-
+  FParseErr := TStringList.Create;
+  FRootNode := TDomTreeNode.Create(Self, Self, 'Root');
+  FCount := 0;
 end;
 
-destructor TDomTree.destroy;
+destructor TDomTree.Destroy;
 begin
-  FreeAndNil(fParseErr);
-  FreeAndNil(fRootNode);
+  FreeAndNil(FParseErr);
+  FreeAndNil(FRootNode);
   inherited;
-end;
-
-
-{ TChildList }
-
-{
-********************************** TChildList **********************************
-}
-destructor TChildList.Destroy;
-var
-  i: Integer;
-begin
-  for i := 0 to Count - 1 do
-   self[i].Free;
-  inherited;
-end;
-
-
-function TChildList.Get(Index: Integer): TDomTreeNode;
-begin
-   Result := TDomTreeNode(inherited Get(Index));
-end;
-
-{ TNodeList }
-
-function TNodeList.Get(Index: Integer): TDomTreeNode;
-begin
-    Result := TDomTreeNode(inherited Get(Index));
-end;
-
-
-{ TPrmRecList }
-
-{
-********************************* TPrmRecList **********************************
-}
-destructor TPrmRecList.Destroy;
-var
-  i: Integer;
-begin
-  for i := 0 to Count - 1 do
-    FreeMem(Items[i]);
-  inherited;
-end;
-
-
-
-function TPrmRecList.Get(Index: Integer): PPrmRec;
-begin
-  Result := PPrmRec(inherited Get(Index));
 end;
 
 { TDomTreeNode }
 
-{
-********************************* TDomTreeNode *********************************
-}
-constructor TDomTreeNode.create(hOwner: TDomTree; hParent: Pointer; hTag, hAttrTxt: string;
-    hAttr: TDictionary<string, string>; hTypeTag, hText: string);
+constructor TDomTreeNode.Create(AOwner: TDomTree; AParent: Pointer; ATag, AAttrTxt: string; AAttr: TDictionary<string,
+  string>; ATypeTag, AText: string);
 begin
-  fChild := TChildList.create;
-  fParent := hParent;
-  fTag := hTag;
-  fAttributesTxt := hAttrTxt;
-  fAttributes := hAttr;
-  fTypeTag:= hTypeTag;
-  fText := hText;
-  fOwner:=hOwner;
-  inc(hOwner.FCount);
+  FChild := TDomTreeNodeList.Create;
+  FParent := AParent;
+  FTag := ATag;
+  FAttributesTxt := AAttrTxt;
+  FAttributes := AAttr;
+  FTypeTag := ATypeTag;
+  FText := AText;
+  FOwner := AOwner;
+  Inc(AOwner.FCount);
 end;
 
-destructor TDomTreeNode.destroy;
+destructor TDomTreeNode.Destroy;
+var
+  i: Integer;
 begin
-FreeAndNil(fAttributes);
-FreeAndNil(fChild);
+  for i := 0 to FChild.Count - 1 do
+    FChild[i].Free;
+  FreeAndNil(FAttributes);
+  FreeAndNil(FChild);
   inherited;
 end;
 
-//***********FindAttr*************
-//  hNameTag - name Tag
-//  hIndex - number of a tag one after another (0 - all tag, 1 - each first ..)
-//  hAttrTxt - attribute. ex. alt=1
-//  hAnyLevel - true - all levels after start node; false - only one child level after start node
-//  dListNode - return TNodeList of TDomTreeNode
-
-function TDomTreeNode.FindNode(hNameTag: string; hIndex:integer; hAttrTxt:
-    String; hAnyLevel: Boolean; dListNode: TNodeList): Boolean;
+function TDomTreeNode.FindNode(NameTag: string; Index: integer; AttrTxt: string; AnyLevel: Boolean; ListNode:
+  TDomTreeNodeList): Boolean;
 var
-RegEx: TPerlRegEx;
-i,a: integer;
-TagNodeList:TNodeList;
-tValue: string;
+  RegEx: TPerlRegEx;
+  i, a: integer;
+  TagNodeList: TDomTreeNodeList;
+  tValue: string;
 
-  Function FindAttrChildNode(aNode:TDomTreeNode;AttrName,AttrValue: String):TNodeList;
+  function FindAttrChildNode(aNode: TDomTreeNode; aAttrName, aAttrValue: string): TDomTreeNodeList;
   var
-   aValue: String;
-   j: integer;
+    aValue: string;
+    j: integer;
   begin
     for j := 0 to aNode.Child.Count - 1 do
     begin
       if aNode.Child[j].Attributes <> nil then
-        if aNode.Child[j].Attributes.ContainsKey(AttrName) then
-          if aNode.Child[j].Attributes.TryGetValue(AttrName, aValue) then
-            if AttrValue = aValue then  dListNode.Add(aNode.Child[j]);
-      if hAnyLevel then
-      FindAttrChildNode(aNode.Child[j], AttrName, AttrValue);
+        if aNode.Child[j].Attributes.ContainsKey(aAttrName) then
+          if aNode.Child[j].Attributes.TryGetValue(aAttrName, aValue) then
+            if aAttrValue = aValue then
+              ListNode.Add(aNode.Child[j]);
+      if AnyLevel then
+        FindAttrChildNode(aNode.Child[j], aAttrName, aAttrValue);
     end;
-    result:=dListNode;
+    Result := ListNode;
   end;
 
 begin
-    RegEx:=nil;
- try
-    result:=false;
-    RegEx := TPerlRegEx.create;
-    RegEx.Subject := hAttrTxt;
-    RegEx.RegEx   :='([^\s]*?[^\S]*)=([^\S]*".*?"[^\S]*)|'+
-                    '([^\s]*?[^\S]*)=([^\S]*#39.*?#39[^\S]*)|'+
-                    '([^\s]*?[^\S]*)=([^\S]*[^\s]+[^\S]*)|'+
-                    '(autofocus[^\S]*)()|'+
-                    '(disabled[^\S]*)()|'+
-                    '(selected[^\S]*)()';
+  RegEx := nil;
+  try
+    Result := False;
+    RegEx := TPerlRegEx.Create;
+    RegEx.Subject := AttrTxt;
+    RegEx.RegEx := '([^\s]*?[^\S]*)=([^\S]*".*?"[^\S]*)|' +
+      '([^\s]*?[^\S]*)=([^\S]*#39.*?#39[^\S]*)|' +
+      '([^\s]*?[^\S]*)=([^\S]*[^\s]+[^\S]*)|' +
+      '(autofocus[^\S]*)()|' +
+      '(disabled[^\S]*)()|' +
+      '(selected[^\S]*)()';
 
-    if (not (hAttrTxt = '')) and (RegEx.Match) then
-       begin
-        for i := 1 to RegEx.GroupCount do
-           if trim(RegEx.Groups[i]) <> '' then break;
-        if hNameTag = '' then
-           begin
-              if FindAttrChildNode(self,RegEx.Groups[i],RegEx.Groups[i+1]).Count>0
-                 then result:=true;
-           end
-        else
-          begin
-             TagNodeList:=TNodeList.Create;
-             if FindTagOfIndex(hNameTag,hIndex,hAnyLevel,TagNodeList) then
-                for a := 0 to TagNodeList.Count - 1 do
-                  if TagNodeList[a].Attributes <> nil then
-                     if TagNodeList[a].Attributes.ContainsKey(RegEx.Groups[i]) then
-                       if TagNodeList[a].Attributes.TryGetValue(RegEx.Groups[i], tValue) then
+    if (not (AttrTxt = '')) and (RegEx.Match) then
+    begin
+      for i := 1 to RegEx.GroupCount do
+        if trim(RegEx.Groups[i]) <> '' then
+          Break;
+      if NameTag = '' then
+      begin
+        if FindAttrChildNode(Self, RegEx.Groups[i], RegEx.Groups[i + 1]).Count > 0
+          then
+          Result := True;
+      end
+      else
+      begin
+        TagNodeList := TDomTreeNodeList.Create;
+        if FindTagOfIndex(NameTag, Index, AnyLevel, TagNodeList) then
+          for a := 0 to TagNodeList.Count - 1 do
+            if TagNodeList[a].Attributes <> nil then
+              if TagNodeList[a].Attributes.ContainsKey(RegEx.Groups[i]) then
+                if TagNodeList[a].Attributes.TryGetValue(RegEx.Groups[i], tValue) then
                        //There was a strong compareson of values of attribute
                        // if RegEx.Groups = tValue)
-                          if pos(RegEx.Groups[i+1],tValue)>0
-                             then
-                              begin
-                                dListNode.Add(TagNodeList[a]);
-                                result:=true;
-                              end;
-             TagNodeList.Free;
-          end;
-       end
-       else
-           if hAttrTxt = '' then
-             begin
-               TagNodeList:=TNodeList.Create;
-               if FindTagOfIndex(hNameTag,hIndex,hAnyLevel,TagNodeList) then
-                  for a := 0 to TagNodeList.Count - 1 do
-                                begin
-                                  dListNode.Add(TagNodeList[a]);
-                                  result:=true;
-                                end;
-               TagNodeList.Free;
-             end
-           else raise Exception.create('Attribute not found: '+ hAttrTxt );
-
- finally
-   RegEx.free
- end;
+                  if Pos(RegEx.Groups[i + 1], tValue) > 0
+                    then
+                  begin
+                    ListNode.Add(TagNodeList[a]);
+                    Result := True;
+                  end;
+        TagNodeList.Free;
+      end;
+    end
+    else if AttrTxt = '' then
+    begin
+      TagNodeList := TDomTreeNodeList.Create;
+      if FindTagOfIndex(NameTag, Index, AnyLevel, TagNodeList) then
+        for a := 0 to TagNodeList.Count - 1 do
+        begin
+          ListNode.Add(TagNodeList[a]);
+          Result := True;
+        end;
+      TagNodeList.Free;
+    end
+    else
+      raise Exception.Create('Attribute not found: ' + AttrTxt);
+  finally
+    RegEx.Free
+  end;
 end;
 
-//***********FindTagOfIndex*************
-//  hNameTag - name Tag (* - any tag, except text tag)
-//  hIndex - number of a tag one after another (0 - all tag, 1 - each first ..)
-//  hAnyLevel - true - all level after start node; false - only one child level after start node
-//  dListNode - return TNodeList of TDomTreeNode
+function TDomTreeNode.FindTagOfIndex(NameTag: string; Index: integer; AnyLevel: Boolean; ListNode: TDomTreeNodeList): Boolean;
 
-function TDomTreeNode.FindTagOfIndex(hNameTag: String; hIndex:integer;
-    hAnyLevel: Boolean; dListNode: TNodeList): Boolean;
-
-  function SubStringOccurences(const subString, sourceString : string; caseSensitive : boolean) : integer;
-var
-   pEx: integer;
-   sub, source : string;
-begin
-   if caseSensitive then
-   begin
-     sub := subString;
-     source := sourceString;
-   end
-   else
-   begin
-     sub := LowerCase(subString);
-     source := LowerCase(sourceString);
-   end;
-
-   result := 0;
-   pEx := PosEx(sub, source, 1);
-   while pEx <> 0 do
-   begin
-     Inc(result);
-     pEx := PosEx(sub, source, pEx + Length(sub));
-   end;
-end;
-
-  Function FindChildTagOfIndex(aNode:TDomTreeNode):TNodeList;
+  function SubStringOccurences(const subString, sourceString: string; caseSensitive: Boolean): integer;
   var
-   countNode,j: integer;
-   enumTags:string;
+    pEx: integer;
+    sub, source: string;
   begin
-   countNode:=0;
-   for j := 0 to aNode.Child.Count - 1 do
-     begin
-      if hNameTag <> '*' then
-          begin
-            if ((AnsiUpperCase(aNode.Child[j].Tag) = AnsiUpperCase(hNameTag)) and (aNode.Child[j].TypeTag <> '</%s>'))
-            or ((AnsiUpperCase(aNode.Child[j].Tag) = '') and (AnsiUpperCase(hNameTag)='TEXT()') and (aNode.Child[j].Text <> ''))
-            or ((LeftStr(AnsiUpperCase(aNode.Child[j].Tag),4) = '<!--') and (AnsiUpperCase(hNameTag)='COMMENT()'))
-               then
-               begin
-                 Inc(countNode);
-                 if (countNode =  hIndex ) or (hIndex = 0) then dListNode.Add(aNode.Child[j])
-               end;
-            if (hAnyLevel) and (aNode.Child.Count > 0) then  FindChildTagOfIndex(aNode.Child[j]) ;
-          end
-      else
-          begin
-            if (aNode.Child[j].TypeTag <> '</%s>')  then
-               begin
-                 enumTags:=enumTags + AnsiUpperCase(aNode.Child[j].Tag)+',';
+    if caseSensitive then
+    begin
+      sub := subString;
+      source := sourceString;
+    end
+    else
+    begin
+      sub := LowerCase(subString);
+      source := LowerCase(sourceString);
+    end;
 
-                 if (SubStringOccurences(AnsiUpperCase(aNode.Child[j].Tag)+',',enumTags, false) =  hIndex ) or (hIndex = 0) then dListNode.Add(aNode.Child[j])
-               end;
-            if (hAnyLevel) and (aNode.Child.Count > 0) then  FindChildTagOfIndex(aNode.Child[j]) ;
-          end;
-     end;
-   result:=dListNode;
+    Result := 0;
+    pEx := PosEx(sub, source, 1);
+    while pEx <> 0 do
+    begin
+      Inc(Result);
+      pEx := PosEx(sub, source, pEx + Length(sub));
+    end;
   end;
 
-
-begin
-   result:=false;
-   if FindChildTagOfIndex(self).Count > 0
-      then result:=true;
-end;
-
-function TDomTreeNode.FindXPath(hXPathTxt: String; dListNode: TNodeList;
-    dListValue:TStringList): Boolean;
+  function FindChildTagOfIndex(aNode: TDomTreeNode): TDomTreeNodeList;
   var
-  RegExXPath, RegExXPathElmt: TPerlRegEx;
-  i: integer;
-  NextAnyLevel:boolean;
-  PrmXPath:TPrmRecList;
-  PrmXPathSTR: String;
-  PrmCount:integer;
-  procedure MatchXpath(Context,mTxtElmt:string)  ;
-  var
-  Prm: PPrmRec;
+    countNode, j: integer;
+    enumTags: string;
   begin
-     if (Context='/') and (trim(mTxtElmt)='') then NextAnyLevel:=true
-     else if (Context='/') and (trim(mTxtElmt)='..') then
-       begin
-         New(prm);
-         Prm.TagName:='..';
-         Prm.ind:=0;
-         Prm.Attr:='';
-         Prm.AnyLevel:=false;
-         PrmXPath.Add(Prm);
-       end
-     else
-       begin
-         RegExXPathElmt.Options := [preCaseLess];
-         RegExXPathElmt.Subject:=trim(mTxtElmt);
-         RegExXPathElmt.RegEx:='^([\.\*@A-Z][-A-Z0-9\(\)]*)\[?([0-9]*)\]?\[?@?([^\]]*)';
-         if RegExXPathElmt.Match  then
-            begin
-              New(prm);
-              Prm.TagName:=RegExXPathElmt.Groups[1];
-              if not TryStrToInt( RegExXPathElmt.Groups[2], Prm.ind ) then Prm.ind:=0;
-              Prm.Attr:=RegExXPathElmt.Groups[3];
-              Prm.AnyLevel:=NextAnyLevel;
-              if (Context='/') then NextAnyLevel:=False;
-              PrmXPath.Add(Prm);
-            end
-         else
-            raise Exception.create('XPath is not correct '+ Context + mTxtElmt );
-     end;
-  end;
-
-  Function FindWithPrm(cPrm:integer; CurNode:TDomTreeNode; dListNode: TNodeList) : boolean;
-  var
-  i: integer;
-  cLNode: TNodeList;
-  begin
-     result:=false;
-     if PrmXPath[cPrm].TagName = '..' then
-          FindWithPrm(cPrm + 1,CurNode.Parent, dListNode)
-     else
-     begin
-       cLNode:=TNodeList.Create;
-       if CurNode.FindNode(PrmXPath[cPrm].TagName,PrmXPath[cPrm].ind,PrmXPath[cPrm].Attr,PrmXPath[cPrm].AnyLevel,cLNode) then
-          for I := 0 to cLNode.Count - 1 do
-              if cPrm < PrmCount then
-                  FindWithPrm(cPrm + 1,cLNode[i], dListNode)
-              else  dListNode.Add(cLNode[i]) ;
-        cLNode.free;
-     end;
-     if dListNode.Count > 0 then result:=true
-  end;
-begin
-   PrmXPath:=nil;
-   RegExXPath:=nil;
-   RegExXPathElmt:=nil;
-try
-    result:=false;
-    NextAnyLevel:=false;
-    PrmXPath:=TPrmRecList.Create;
-    PrmXPathSTR:='';
-    RegExXPath := TPerlRegEx.create;
-    RegExXPathElmt := TPerlRegEx.create;
-
-    RegExXPath.Subject:= hXPathTxt;
-    RegExXPath.RegEx:='(/)([\*@]?[^/]*)';
-    if RegExXPath.Match then
+    countNode := 0;
+    for j := 0 to aNode.Child.Count - 1 do
+    begin
+      if NameTag <> '*' then
       begin
-        MatchXpath(RegExXPath.Groups[1],RegExXPath.Groups[2]);
-        while RegExXPath.MatchAgain do
-           MatchXpath(RegExXPath.Groups[1],RegExXPath.Groups[2]);
-        for i := 0 to PrmXPath.Count-1 do
-            PrmXPathSTR:=PrmXPathSTR + PrmXPath[i].TagName +',' + inttostr(PrmXPath[i].ind) +',' + PrmXPath[i].Attr+',' + BoolToStr(PrmXPath[i].AnyLevel,True)+chr(13)+chr(10);
-
-        if PrmXPath.Count > 0 then
-          begin
-            if (PrmXPath[PrmXPath.Count-1].TagName[1]='@')
-               then
-                 begin
-                    PrmCount:= PrmXPath.Count - 2;
-                    PrmXPath[PrmXPath.Count-1].TagName:=AnsiReplaceStr(PrmXPath[PrmXPath.Count-1].TagName,'@','');
-                    if FindWithPrm(0,self,dListNode) then
-                       begin
-                         for I := 0 to dListNode.Count-1 do
-                             if dListNode[i].GetAttrValue(PrmXPath[PrmXPath.Count-1].TagName)<>''  then
-                                 dListValue.Add(dListNode[i].GetAttrValue(PrmXPath[PrmXPath.Count-1].TagName));
-                         if dListValue.Count > 0 then result:= true
-                         else result:=false;
-                       end
-                    else result:=false;
-                 end
-               else
-                 begin
-                    PrmCount:= PrmXPath.Count - 1;
-                    result:= FindWithPrm(0,self,dListNode);
-                    if   (AnsiLowerCase(PrmXPath[PrmXPath.Count-1].TagName)='comment()')
-                      or (AnsiLowerCase(PrmXPath[PrmXPath.Count-1].TagName)='text()') then
-                         for I := 0 to dListNode.Count-1 do
-                         begin
-                           if (AnsiLowerCase(PrmXPath[PrmXPath.Count-1].TagName)='text()')
-                              then dListValue.Add(dListNode[i].Text)
-                           else    dListValue.Add(TDomTreeNode(dListNode[i]).Tag) ;
-
-                         end;
-                 end;
-          end
-        else raise Exception.create('XPath is not correct or empty.');
+        if ((AnsiUpperCase(aNode.Child[j].Tag) = AnsiUpperCase(NameTag)) and (aNode.Child[j].TypeTag <> '</%s>'))
+          or ((AnsiUpperCase(aNode.Child[j].Tag) = '') and (AnsiUpperCase(NameTag) = 'TEXT()') and (aNode.Child[j].Text <> ''))
+          or ((LeftStr(AnsiUpperCase(aNode.Child[j].Tag), 4) = '<!--') and (AnsiUpperCase(NameTag) = 'COMMENT()'))
+          then
+        begin
+          Inc(countNode);
+          if (countNode = Index) or (Index = 0) then
+            ListNode.Add(aNode.Child[j])
+        end;
+        if (AnyLevel) and (aNode.Child.Count > 0) then
+          FindChildTagOfIndex(aNode.Child[j]);
       end
-    else raise Exception.create('XPath is not correct or empty.');
-finally
+      else
+      begin
+        if (aNode.Child[j].TypeTag <> '</%s>') then
+        begin
+          enumTags := enumTags + AnsiUpperCase(aNode.Child[j].Tag) + ',';
+
+          if (SubStringOccurences(AnsiUpperCase(aNode.Child[j].Tag) + ',', enumTags, false) = Index) or (Index = 0) then
+            ListNode.Add(aNode.Child[j])
+        end;
+        if (AnyLevel) and (aNode.Child.Count > 0) then
+          FindChildTagOfIndex(aNode.Child[j]);
+      end;
+    end;
+    Result := ListNode;
+  end;
+
+begin
+  Result := False;
+  if FindChildTagOfIndex(Self).Count > 0 then
+    Result := True;
+end;
+
+function TDomTreeNode.FindPath(Path: string; ListNode: TDomTreeNodeList; ListValue: TStringList): Boolean;
+var
+  RegExXPath, RegExXPathElmt: TPerlRegEx;
+  i, PrmCount: integer;
+  NextAnyLevel: boolean;
+  PrmXPath: TPrmRecList;
+  PrmXPathSTR: string;
+  PrmItem: TPrmRec;
+
+  procedure MatchPath(aContext, aTxtElmt: string);
+  var
+    Prm: TPrmRec;
+  begin
+    if (aContext = '/') and (Trim(aTxtElmt) = '') then
+      NextAnyLevel := True
+    else if (aContext = '/') and (Trim(aTxtElmt) = '..') then
+    begin
+      Prm.TagName := '..';
+      Prm.Index := 0;
+      Prm.Attr := '';
+      Prm.AnyLevel := False;
+      PrmXPath.Add(Prm);
+    end
+    else
+    begin
+      RegExXPathElmt.Options := [preCaseLess];
+      RegExXPathElmt.Subject := Trim(aTxtElmt);
+      RegExXPathElmt.RegEx := '^([\.\*@A-Z][-A-Z0-9\(\)]*)\[?([0-9]*)\]?\[?@?([^\]]*)';
+      if RegExXPathElmt.Match then
+      begin
+        Prm.TagName := RegExXPathElmt.Groups[1];
+        if not TryStrToInt(RegExXPathElmt.Groups[2], Prm.Index) then
+          Prm.Index := 0;
+        Prm.Attr := RegExXPathElmt.Groups[3];
+        Prm.AnyLevel := NextAnyLevel;
+        if (aContext = '/') then
+          NextAnyLevel := False;
+        PrmXPath.Add(Prm);
+      end
+      else
+        raise Exception.Create('XPath is not correct ' + aContext + aTxtElmt);
+    end;
+  end;
+
+  function FindWithPrm(aPrm: integer; aCurNode: TDomTreeNode; aListNode: TDomTreeNodeList): boolean;
+  var
+    i: integer;
+    cLNode: TDomTreeNodeList;
+  begin
+    Result := False;
+    if PrmXPath[aPrm].TagName = '..' then
+      FindWithPrm(aPrm + 1, aCurNode.Parent, aListNode)
+    else
+    begin
+      cLNode := TDomTreeNodeList.Create;
+      if aCurNode.FindNode(PrmXPath[aPrm].TagName, PrmXPath[aPrm].Index, PrmXPath[aPrm].Attr, PrmXPath[aPrm].AnyLevel,
+        cLNode) then
+        for i := 0 to cLNode.Count - 1 do
+          if aPrm < PrmCount then
+            FindWithPrm(aPrm + 1, cLNode[i], aListNode)
+          else
+            aListNode.Add(cLNode[i]);
+      cLNode.Free;
+    end;
+    if aListNode.Count > 0 then
+      Result := True;
+  end;
+
+begin
+  PrmXPath := nil;
+  RegExXPath := nil;
+  RegExXPathElmt := nil;
+  try
+    NextAnyLevel := false;
+    PrmXPath := TPrmRecList.Create;
+    PrmXPathSTR := '';
+    RegExXPath := TPerlRegEx.Create;
+    RegExXPathElmt := TPerlRegEx.Create;
+
+    RegExXPath.Subject := Path;
+    RegExXPath.RegEx := '(/)([\*@]?[^/]*)';
+    if RegExXPath.Match then
+    begin
+      MatchPath(RegExXPath.Groups[1], RegExXPath.Groups[2]);
+      while RegExXPath.MatchAgain do
+        MatchPath(RegExXPath.Groups[1], RegExXPath.Groups[2]);
+      for i := 0 to PrmXPath.Count - 1 do
+        PrmXPathSTR := PrmXPathSTR + PrmXPath[i].TagName + ',' + inttostr(PrmXPath[i].Index) + ',' + PrmXPath[i].Attr +
+          ',' + BoolToStr(PrmXPath[i].AnyLevel, True) + #13#10;
+
+      if PrmXPath.Count > 0 then
+      begin
+        if (PrmXPath[PrmXPath.Count - 1].TagName[1] = '@')
+          then
+        begin
+          PrmCount := PrmXPath.Count - 2;
+          PrmItem := PrmXPath[PrmXPath.Count - 1];
+          PrmItem.TagName := AnsiReplaceStr(PrmItem.TagName, '@', '');
+          if FindWithPrm(0, Self, ListNode) then
+          begin
+            for i := 0 to ListNode.Count - 1 do
+              if ListNode[i].GetAttrValue(PrmXPath[PrmXPath.Count - 1].TagName) <> '' then
+                ListValue.Add(ListNode[i].GetAttrValue(PrmXPath[PrmXPath.Count - 1].TagName));
+            if ListValue.Count > 0 then
+              Result := True
+            else
+              Result := False;
+          end
+          else
+            Result := False;
+        end
+        else
+        begin
+          PrmCount := PrmXPath.Count - 1;
+          Result := FindWithPrm(0, Self, ListNode);
+          if (AnsiLowerCase(PrmXPath[PrmXPath.Count - 1].TagName) = 'comment()')
+            or (AnsiLowerCase(PrmXPath[PrmXPath.Count - 1].TagName) = 'text()') then
+            for i := 0 to ListNode.Count - 1 do
+            begin
+              if (AnsiLowerCase(PrmXPath[PrmXPath.Count - 1].TagName) = 'text()')
+                then
+                ListValue.Add(ListNode[i].Text)
+              else
+                ListValue.Add(ListNode[i].Tag);
+            end;
+        end;
+      end
+      else
+        raise Exception.Create('XPath is not correct or empty.');
+    end
+    else
+      raise Exception.Create('XPath is not correct or empty.');
+  finally
     PrmXPath.Free;
     RegExXPath.Free;
     RegExXPathElmt.Free;
+  end;
 end;
 
-end;
-
-function TDomTreeNode.GetAttrValue(hAttrName:string): string;
+function TDomTreeNode.GetAttrValue(AttrName: string): string;
 begin
-   result:='';
-   if self.Attributes <> nil then
-      if self.Attributes.ContainsKey(hAttrName) then
-         if not self.Attributes.TryGetValue(hAttrName, result) then
-            result:='';
-
+  Result := '';
+  if Self.Attributes <> nil then
+    if Self.Attributes.ContainsKey(AttrName) then
+      if not Self.Attributes.TryGetValue(AttrName, Result) then
+        Result := '';
 end;
 
-function TDomTreeNode.GetComment(hIndex: Integer): string;
+function TDomTreeNode.GetComment(Index: Integer): string;
 var
-   countNode,j: integer;
+  countNode, j: integer;
 begin
-   result:='';
-   countNode:=0;
-   for j := 0 to self.Child.Count - 1 do
-      if (LeftStr(self.Child[j].Tag,4) = '<!--') and
-            (self.Child[j].TypeTag = '%s') and
-                 (self.Child[j].Text = '')
-          then
-             begin
-                 Inc(countNode);
-                 if (countNode =  hIndex ) or (hIndex = 0) then
-                    begin
-                       result:= self.Child[j].Tag;
-                       break;
-                    end;
-             end;
+  Result := '';
+  countNode := 0;
+  for j := 0 to Child.Count - 1 do
+  begin
+    if (LeftStr(Child[j].Tag, 4) = '<!--') and
+      (Child[j].TypeTag = '%s') and
+      (Child[j].Text = '')
+      then
+    begin
+      Inc(countNode);
+      if (countNode = Index) or (Index = 0) then
+      begin
+        Result := Child[j].Tag;
+        Break;
+      end;
+    end;
+  end;
 end;
 
 function TDomTreeNode.GetTagName: string;
 begin
- if self.TypeTag='</%s>' then
-     result:= format(AnsiReplaceStr(self.TypeTag,'/',''),[self.Tag  + ' ' +  self.AttributesTxt] )
- else
-     result:= format(self.TypeTag,[self.Tag  + ' ' +  self.AttributesTxt] );
+  if TypeTag = '</%s>' then
+    Result := Format(AnsiReplaceStr(TypeTag, '/', ''), [Tag + ' ' + AttributesTxt])
+  else
+    Result := Format(TypeTag, [Tag + ' ' + AttributesTxt]);
 end;
 
-function TDomTreeNode.GetTextValue(hIndex:Integer): string;
+function TDomTreeNode.GetTextValue(Index: Integer): string;
 var
-   countNode,j: integer;
+  countNode, j: integer;
 begin
-   result:='';
-   countNode:=0;
-   for j := 0 to self.Child.Count - 1 do
-      if (self.Child[j].Tag = '') and
-            (self.Child[j].TypeTag = '') and
-                 (self.Child[j].Text <> '')
-          then
-             begin
-                 Inc(countNode);
-                 if (countNode =  hIndex ) or (hIndex = 0) then
-                    begin
-                      result:= self.Child[j].Text;
-                      break;
-                    end;
-             end;
-end;
-
-function TDomTreeNode.GetXPath(hRelative:boolean): string;
-
-function GetCountTag(Node: TDomTreeNode): string;
-var
-CountNode, nNode, i: integer;
-begin
-  CountNode:=0;
-  result:= '';
-  if TObject(Node.Parent) is TDomTreeNode then
-     begin
-       for i:=0 to TDomTreeNode(Node.Parent).Child.Count - 1 do
-          begin
-            if (Node.Tag = TDomTreeNode(Node.Parent).Child[i].Tag)
-              or ((LeftStr(Node.Tag,4)='<!--') and (LeftStr(TDomTreeNode(Node.Parent).Child[i].Tag,4)='<!--'))
-                then
-               inc(CountNode);
-            if Node = TDomTreeNode(Node.Parent).Child[i]  then
-               nNode:= CountNode;
-          end;
-       if (CountNode <> nNode) or ((CountNode = nNode) and (CountNode > 1)) then
-           result:= format('[%d]',[nNode]);
-     end;
-end;
-
-function GetParent(Node: TDomTreeNode): string;
-begin
-  if TObject(Node.Parent) is TDomTreeNode then
-     begin
-        if (hRelative) and (TDomTreeNode(Node.Parent).GetAttrValue('id') <>'') then
-                result:=format('//*[@id=%s]',[TDomTreeNode(Node.Parent).GetAttrValue('id')])+
-                         '/' + result
-             else
-               result:=GetParent(Node.Parent)+
-                       TDomTreeNode(Node.Parent).Tag + GetCountTag(Node.Parent) + '/' + result
-     end
-  else result:='.'+result;
-end;
-
-
-begin
-  if (LeftStr(self.Tag,2) <> '<?') and (LeftStr(self.Tag,9) <> '<!DOCTYPE') then
+  Result := '';
+  countNode := 0;
+  for j := 0 to Child.Count - 1 do
   begin
-     if LeftStr(self.Tag,4) = '<!--' then result:='comment()'
-     else if self.Tag <> '' then result:=self.Tag
-           else  result:='text()';
-     result:=GetParent(self) +  result + GetCountTag(self);
-     if result[1]='.' then
-        result:='.'+RightStr(result, length(result)-pos('/',result,1)+1);
-
-  end
-  else  result:='';
-
+    if (Child[j].Tag = '') and
+      (Child[j].TypeTag = '') and
+      (Child[j].Text <> '')
+      then
+    begin
+      Inc(countNode);
+      if (countNode = Index) or (Index = 0) then
+      begin
+        Result := Child[j].Text;
+        Break;
+      end;
+    end;
+  end;
 end;
 
-function TDomTreeNode.RunParse(HtmlTxt: String): Boolean;
+function TDomTreeNode.GetPath(Relative: Boolean): string;
+
+  function GetCountTag(Node: TDomTreeNode): string;
+  var
+    CountNode, nNode, i: integer;
+  begin
+    nNode := 0;
+    CountNode := 0;
+    Result := '';
+    if TObject(Node.Parent) is TDomTreeNode then
+    begin
+      for i := 0 to Node.Parent.Child.Count - 1 do
+      begin
+        if (Node.Tag = Node.Parent.Child[i].Tag)
+          or ((LeftStr(Node.Tag, 4) = '<!--') and (LeftStr(Node.Parent.Child[i].Tag, 4) = '<!--'))
+          then
+          Inc(CountNode);
+        if Node = Node.Parent.Child[i] then
+          nNode := CountNode;
+      end;
+      if (CountNode <> nNode) or ((CountNode = nNode) and (CountNode > 1)) then
+        Result := Format('[%d]', [nNode]);
+    end;
+  end;
+
+  function GetParent(Node: TDomTreeNode): string;
+  begin
+    if TObject(Node.Parent) is TDomTreeNode then
+    begin
+      if (Relative) and (Node.Parent.GetAttrValue('id') <> '') then
+        Result := Format('//*[@id=%s]', [Node.Parent.GetAttrValue('id')]) +
+          '/' + Result
+      else
+        Result := GetParent(Node.Parent) +
+          Node.Parent.Tag + GetCountTag(Node.Parent) + '/' + Result
+    end
+    else
+      Result := '.' + Result;
+  end;
+
+begin
+  if (LeftStr(Tag, 2) <> '<?') and (LeftStr(Tag, 9) <> '<!DOCTYPE') then
+  begin
+    if LeftStr(Tag, 4) = '<!--' then
+      Result := 'comment()'
+    else if Tag <> '' then
+      Result := Tag
+    else
+      Result := 'text()';
+    Result := GetParent(Self) + Result + GetCountTag(Self);
+    if Result[1] = '.' then
+      Result := '.' + RightStr(Result, Length(Result) - Pos('/', Result, 1) + 1);
+  end
+  else
+    Result := '';
+end;
+
+function TDomTreeNode.Parse(HtmlTxt: string): Boolean;
 var
   RegExHTML, RegExTag: TPerlRegEx;
-  prev, ErrParseHTML, ind: integer;
+  prev, ErrParseHTML: integer;
   ChildTree: TDomTreeNode;
   HtmlUtf8, RegExException: string;
-  tag_txt: TArray<String>;
 
-  function getAttr(mAttrTxt: string): TDictionary<string, string>;
+  function GetAttr(aAttrTxt: string): TDictionary<string, string>;
   var
-  CheckAttr: String;
+    CheckAttr: string;
+
     procedure MatchAttr;
     var
-      i: integer;
+      i, kn: integer;
+      KeyStr: string;
     begin
-      CheckAttr := StuffString(CheckAttr,RegExTag.MatchedOffset+1, RegExTag.MatchedLength, StringOfChar(' ',RegExTag.MatchedLength));
+      CheckAttr := StuffString(CheckAttr, RegExTag.MatchedOffset + 1, RegExTag.MatchedLength, StringOfChar(' ', RegExTag.MatchedLength));
       for i := 1 to RegExTag.GroupCount do
-        if trim(RegExTag.Groups[i]) <> '' then
+        if RegExTag.Groups[i].Trim <> '' then
         begin
           try
-            result.Add(trim(RegExTag.Groups[i]), trim(RegExTag.Groups[i + 1]));
+            //Для случаев дублирования атрибутов (class="class1", class="class2")
+            KeyStr := RegExTag.Groups[i].Trim;
+            if Result.ContainsKey(KeyStr) then
+            begin
+              kn := 1;
+              while Result.ContainsKey(KeyStr + '_' + kn.ToString) do
+              begin
+                Inc(kn);
+              end;
+              KeyStr := KeyStr + '_' + kn.ToString;
+            end;
+            //
+            Result.Add(KeyStr, RegExTag.Groups[i + 1].Trim);
           except
             on E: Exception do
-              Owner.fParseErr.Add('Warning: not add Attributtes ' +
-                E.ClassName + ' : ' + E.Message + 'Sourse string: ' + mAttrTxt +
-                ';' + chr(13)+chr(10)+' attributtes: ' + RegExTag.Groups[i]);
+              Owner.FParseErr.Add('Warning: not add Attributtes ' +
+                E.ClassName + ' : ' + E.Message + 'Sourse string: ' + aAttrTxt +
+                ';' + #13#10 + ' attributtes: ' + RegExTag.Groups[i]);
           end;
-          break;
+          Break;
         end;
     end;
 
   begin
     try
-      result := TDictionary<string, string>.create;
-      if trim(mAttrTxt) <> '' then
+      Result := TDictionary<string, string>.Create;
+      if Trim(aAttrTxt) <> '' then
       begin
-        RegExTag.Subject := mAttrTxt;
-        CheckAttr :=   mAttrTxt;
+        RegExTag.Subject := aAttrTxt;
+        CheckAttr := aAttrTxt;
         RegExTag.Options := [preCaseLess, preMultiLine, preSingleLine];
-        RegExTag.Replacement:='';
+        RegExTag.Replacement := '';
         // here RegExp for processing attributes of tags
         // First not Empty - attribute, next - value
-        RegExTag.RegEx :='([^\s]*?[^\S]*)=([^\S]*".*?"[^\S]*)|'+
-                         '([^\s]*?[^\S]*)=([^\S]*'#39'.*?'#39'[^\S]*)|'+
-                         '([^\s]*?[^\S]*)=([^\S]*[^\s]+[^\S]*)|'+
-                         '(allowTransparency[^\S]*)()|'+
-                         '(allowfullscreen[^\S]*)()|'+
-                         '(novalidate[^\S]*)()|'+
-                         '(autofocus[^\S]*)()|'+
-                         '(itemscope[^\S]*)()|'+
-                         '(disabled[^\S]*)()|'+
-                         '(readonly[^\S]*)()|'+
-                         '(selected[^\S]*)()|'+
-                         '(checked[^\S]*)()|'+
-                         '(pubdate[^\S]*)()|'+
-                         '(nowrap[^\S]*)()|'+
-                         '(hidden[^\S]*)()|'+
-                         '(async[^\S]*)()';
+        RegExTag.RegEx := '([^\s]*?[^\S]*)=([^\S]*".*?"[^\S]*)|' +
+          '([^\s]*?[^\S]*)=([^\S]*'#39'.*?'#39'[^\S]*)|' +
+          '([^\s]*?[^\S]*)=([^\S]*[^\s]+[^\S]*)|' +
+          '(allowTransparency[^\S]*)()|' +
+          '(allowfullscreen[^\S]*)()|' +
+          '(novalidate[^\S]*)()|' +
+          '(autofocus[^\S]*)()|' +
+          '(itemscope[^\S]*)()|' +
+          '(disabled[^\S]*)()|' +
+          '(readonly[^\S]*)()|' +
+          '(selected[^\S]*)()|' +
+          '(checked[^\S]*)()|' +
+          '(pubdate[^\S]*)()|' +
+          '(nowrap[^\S]*)()|' +
+          '(hidden[^\S]*)()|' +
+          '(async[^\S]*)()';
         if RegExTag.Match then
         begin
           MatchAttr;
@@ -696,182 +648,201 @@ var
             MatchAttr;
           // ***Start Check Parsing Tag Attributes Error****
           if Length(Trim(CheckAttr)) > 0 then
-            Owner.fParseErr.Add('Warning: parsed not all attributes, ' +
-              'sourse string: ' + mAttrTxt + chr(13)+chr(10)+
+            Owner.FParseErr.Add('Warning: parsed not all attributes, ' +
+              'sourse string: ' + aAttrTxt + #13#10 +
               'not parsed string: ' + Trim(CheckAttr));
           // ***End Check Parsing Tag Attributes Error************
         end
         else
-          Owner.fParseErr.Add('Attributtes not found - ' +
-            'Sourse string: ' + mAttrTxt);
+          Owner.FParseErr.Add('Attributtes not found - ' +
+            'Sourse string: ' + aAttrTxt);
       end;
     except
       on E: Exception do
-        Owner.fParseErr.Add('Attributtes - ' + E.ClassName + ' : ' +
-          E.Message + 'Sourse string: ' + mAttrTxt);
+        Owner.FParseErr.Add('Attributtes - ' + E.ClassName + ' : ' +
+          E.Message + 'Sourse string: ' + aAttrTxt);
     end;
   end;
 
-  function getTagTxt(mTxt: string): TArray<String>;
+  function GetTagTxt(aTxt: string): TTagItem;
   begin
     try
-      SetLength(result, 4);
-      result[0] := ''; // name tag
-      result[1] := ''; // text attributes
-      result[2] := ''; // text value following for tag
-      result[3] := ''; // type tag
-        if LeftStr(trim(mTxt),2) = '</'         then result[3] :='</%s>'  //close
-          else if RightStr(trim(mTxt),2) = '/>' then result[3] :='<%s/>'  //selfclose
-          else if LeftStr(trim(mTxt),2) = '<!'  then result[3] :='%s'
-          else if LeftStr(trim(mTxt),2) = '<?'  then result[3] :='%s'
-               else                                  result[3] :='<%s>';  // open
-      RegExTag.Subject := mTxt;
+      Result[0] := ''; // name tag
+      Result[1] := ''; // text attributes
+      Result[2] := ''; // text value following for tag
+      Result[3] := ''; // type tag
+      if LeftStr(Trim(aTxt), 2) = '</' then
+        Result[3] := '</%s>'  //close
+      else if RightStr(Trim(aTxt), 2) = '/>' then
+        Result[3] := '<%s/>'  //selfclose
+      else if LeftStr(Trim(aTxt), 2) = '<!' then
+        Result[3] := '%s'
+      else if LeftStr(Trim(aTxt), 2) = '<?' then
+        Result[3] := '%s'
+      else
+        Result[3] := '<%s>';  // open
+      RegExTag.Subject := aTxt;
       RegExTag.Options := [preCaseLess, preMultiLine, preSingleLine];
       // here RegExp for processing HTML tags
       // Group 1- tag, 2- attributes, 3- text
       RegExTag.RegEx := '<([/A-Z][:A-Z0-9]*)\b([^>]*)>([^<]*)';
       if RegExTag.Match then
-         begin
+      begin
           // ****************Start Check Parsing HTML Tag Error************
-          if mTxt <> '<' + RegExTag.Groups[1] + RegExTag.Groups[2] + '>' +  RegExTag.Groups[3] then
-                   Owner.fParseErr.Add('Check error Tags parsing - ' + 'Sourse string: ' + mTxt);
+        if aTxt <> '<' + RegExTag.Groups[1] + RegExTag.Groups[2] + '>' + RegExTag.Groups[3] then
+          Owner.FParseErr.Add('Check error Tags parsing - ' + 'Sourse string: ' + aTxt);
           // ****************End Check Parsing HTML Tag Error************
-          result[0] := trim(RegExTag.Groups[1]);
-          if trim(RegExTag.Groups[2])<> '' then
-             if RightStr(trim(RegExTag.Groups[2]),1)= '/' then
-                result[1] := leftStr(trim(RegExTag.Groups[2]),length(trim(RegExTag.Groups[2]))-1)
-             else  result[1] := trim(RegExTag.Groups[2]);
-          result[2] := trim(RegExTag.Groups[3]);
+        Result[0] := Trim(RegExTag.Groups[1]);
+        if Trim(RegExTag.Groups[2]) <> '' then
+          if RightStr(Trim(RegExTag.Groups[2]), 1) = '/' then
+            Result[1] := LeftStr(Trim(RegExTag.Groups[2]), Length(Trim(RegExTag.Groups[2])) - 1)
+          else
+            Result[1] := Trim(RegExTag.Groups[2]);
+        Result[2] := Trim(RegExTag.Groups[3]);
       end
       else
-        result[0] := trim(mTxt);
+        Result[0] := Trim(aTxt);
     except
       on E: Exception do
-        Owner.fParseErr.Add('Tags - ' + E.ClassName + ' : ' + E.Message +
-          'Sourse string: ' + mTxt);
+        Owner.FParseErr.Add('Tags - ' + E.ClassName + ' : ' + E.Message +
+          'Sourse string: ' + aTxt);
     end;
   end;
 
-  function getPairTagTxt(mTxt, mPattern: string): TArray<String>;
+  function GetPairTagTxt(aTxt, aPattern: string): TTagItem;
   begin
     try
-      SetLength(result, 4);
-      result[0] := ''; // name tag
-      result[1] := ''; // text attributes
-      result[2] := ''; // text value following for tag
-      result[3] := ''; // close tag
+      Result[0] := ''; // name tag
+      Result[1] := ''; // text attributes
+      Result[2] := ''; // text value following for tag
+      Result[3] := ''; // close tag
 
-      RegExTag.Subject := mTxt;
+      RegExTag.Subject := aTxt;
       RegExTag.Options := [preCaseLess, preMultiLine, preSingleLine];
       // here RegExp for processing HTML tags
       // Group 1- tag, 2- attributes, 3- text
-      RegExTag.RegEx := mPattern;
+      RegExTag.RegEx := aPattern;
       if RegExTag.Match then
-         begin
+      begin
           // ****************Start Check Parsing HTML Tag Error************
-          if trim(mTxt) <> '<' + RegExTag.Groups[1] + RegExTag.Groups[2] + '>' +  RegExTag.Groups[3] +  '<' +RegExTag.Groups[4] +'>' then
-                   Owner.fParseErr.Add('Check error Exception Tags parsing - ' + 'Sourse string: ' + mTxt);
+        if Trim(aTxt) <> '<' + RegExTag.Groups[1] + RegExTag.Groups[2] + '>' + RegExTag.Groups[3] + '<' + RegExTag.Groups
+          [4] + '>' then
+          Owner.FParseErr.Add('Check error Exception Tags parsing - ' + 'Sourse string: ' + aTxt);
           // ****************End Check Parsing HTML Tag Error************
-          result[0] := trim(RegExTag.Groups[1]);
-          result[1] := trim(RegExTag.Groups[2]);
-          result[2] := trim(RegExTag.Groups[3]);
-          result[3] := trim(RegExTag.Groups[4]);
+        Result[0] := Trim(RegExTag.Groups[1]);
+        Result[1] := Trim(RegExTag.Groups[2]);
+        Result[2] := Trim(RegExTag.Groups[3]);
+        Result[3] := Trim(RegExTag.Groups[4]);
       end
       else
-        result[0] := mTxt;
+        Result[0] := aTxt;
     except
       on E: Exception do
-        Owner.fParseErr.Add('Exception Tags - ' + E.ClassName + ' : ' + E.Message +
-          'Sourse string: ' + mTxt);
+        Owner.FParseErr.Add('Exception Tags - ' + E.ClassName + ' : ' + E.Message +
+          'Sourse string: ' + aTxt);
     end;
   end;
 
-  Function CheckParent(aChildTree: TDomTreeNode; tTag: string):TDomTreeNode;
+  function CheckParent(aChildTree: TDomTreeNode; aTag: string): TDomTreeNode;
   var
     ParentTag: string;
   begin
-    result := aChildTree.Parent;
-    if tTag = '<%s>' then
-       result := aChildTree
-    else if tTag = '</%s>' then
-      if TObject(TDomTreeNode(aChildTree.Parent).Parent) is TDomTreeNode then
+    Result := aChildTree.Parent;
+    if aTag = '<%s>' then
+      Result := aChildTree
+    else if aTag = '</%s>' then
+      if Assigned(aChildTree.Parent.Parent) then
       begin
-        ParentTag := TDomTreeNode(aChildTree.Parent).Tag;
-        if ParentTag = RightStr(aChildTree.Tag, length(aChildTree.Tag) - 1) then
-          result := TDomTreeNode(aChildTree.Parent).Parent
+        ParentTag := aChildTree.Parent.Tag;
+        if ParentTag = RightStr(aChildTree.Tag, Length(aChildTree.Tag) - 1) then
+          Result := aChildTree.Parent.Parent;
       end;
   end;
 
-  procedure MatchTag(mTxtMatch:string);
-    var
-    ExceptTag:  string;
+  procedure MatchTag(aTxtMatch: string);
+  var
+    ExceptTag: string;
+    ChildIndex: Integer;
+    TagItem: TTagItem;
   begin
     // tag without close tag
-      ExceptTag :=
+    ExceptTag :=
       ',META,LINK,IMG,COL,AREA,BASE,BASEFONT,ISINDEX,BGSOUNDCOMMAND,PARAM,INPUT,EMBED,FRAME,BR,WBR,HR,TRACK,';
 
-     if (leftstr(mTxtMatch, 4) = '<!--') then
-        begin
-          tag_txt[0] := trim(mTxtMatch);
-          tag_txt[1] := '';
-          tag_txt[2] := '';
-          tag_txt[3] := '%s';
-           ChildTree.Child.Add(TDomTreeNode.create(ChildTree.Owner,ChildTree, tag_txt[0], '', nil, '%s','')) ;
-        end
-     else if (AnsiUpperCase(leftstr(mTxtMatch, 7)) = '<TITLE>')        // tag with any symbol
-          or (AnsiUpperCase(leftstr(mTxtMatch, 10)) = '<PLAINTEXT>')
-          or (AnsiUpperCase(leftstr(mTxtMatch, 5)) = '<XMP>')
-          or (AnsiUpperCase(leftstr(mTxtMatch, 7)) = '<SCRIPT')
-          or (AnsiUpperCase(leftstr(mTxtMatch, 9)) = '<TEXTAREA')
+    if (LeftStr(aTxtMatch, 4) = '<!--') then
+    begin
+      TagItem[0] := Trim(aTxtMatch);
+      TagItem[1] := '';
+      TagItem[2] := '';
+      TagItem[3] := '%s';
+      ChildTree.Child.Add(TDomTreeNode.Create(ChildTree.Owner, ChildTree, TagItem[0], '', nil, '%s'));
+    end
+    else if (AnsiUpperCase(LeftStr(aTxtMatch, 7)) = '<TITLE>')        // tag with any symbol
+      or (AnsiUpperCase(LeftStr(aTxtMatch, 10)) = '<PLAINTEXT>')
+      or (AnsiUpperCase(LeftStr(aTxtMatch, 5)) = '<XMP>')
+      or (AnsiUpperCase(LeftStr(aTxtMatch, 7)) = '<SCRIPT')
+      or (AnsiUpperCase(LeftStr(aTxtMatch, 9)) = '<TEXTAREA')
           //or (AnsiUpperCase(leftstr(mTxtMatch, 4)) = '<PRE')
-          then
-        begin
-           tag_txt := getPairTagTxt(mTxtMatch,'<([A-Z][A-Z0-9]*)\b([^>]*?)>(.*)<(/\1)>');
-           ind:=ChildTree.Child.Add(TDomTreeNode.create(ChildTree.Owner,ChildTree, tag_txt[0], tag_txt[1], getAttr(tag_txt[1]), '<%s>','')) ;
-           if tag_txt[2] <> '' then ChildTree.Child[ind].Child.Add(TDomTreeNode.create(ChildTree.Owner,ChildTree.Child[ind], '', '', nil, '', tag_txt[2]));
-           ChildTree.Child[ind].Child.Add(TDomTreeNode.create(ChildTree.Owner,ChildTree.Child[ind], tag_txt[3], '', nil, '</%s>','')) ;
-        end
-     else
-        begin
-          tag_txt := getTagTxt(mTxtMatch);
-          ind := ChildTree.Child.Add(TDomTreeNode.create(ChildTree.Owner,ChildTree, tag_txt[0], tag_txt[1], getAttr(tag_txt[1]), tag_txt[3],''));
-          if (pos(',' + AnsiUpperCase(trim(tag_txt[0])) + ',', ExceptTag) = 0)
-             and (LeftStr(tag_txt[0],2) <> '<?')
-             and (LeftStr(tag_txt[0],2) <> '<!') then
-             ChildTree := CheckParent(ChildTree.Child[ind],tag_txt[3]);
-          if tag_txt[2] <> '' then
-             ChildTree.Child.Add(TDomTreeNode.create(ChildTree.Owner,ChildTree, '', '', nil, '',tag_txt[2]));
+        then
+    begin
+      TagItem := GetPairTagTxt(aTxtMatch, '<([A-Z][A-Z0-9]*)\b([^>]*?)>(.*)<(/\1)>');
+      ChildIndex := ChildTree
+        .Child.Add(TDomTreeNode.Create(ChildTree.Owner, ChildTree, TagItem[0], TagItem[1], GetAttr(TagItem[1]), '<%s>'));
 
-        end;
+      if TagItem[2] <> '' then
+        ChildTree.Child[ChildIndex]
+          .Child.Add(TDomTreeNode.Create(ChildTree.Owner, ChildTree.Child[ChildIndex], '', '', nil, '', TagItem[2]));
+
+      ChildTree.Child[ChildIndex]
+        .Child.Add(TDomTreeNode.Create(ChildTree.Owner, ChildTree.Child[ChildIndex], TagItem[3], '', nil, '</%s>'));
+    end
+    else
+    begin
+      TagItem := GetTagTxt(aTxtMatch);
+
+      ChildIndex := ChildTree.Child.Add(
+        TDomTreeNode.Create(ChildTree.Owner, ChildTree, TagItem[0], TagItem[1], GetAttr(TagItem[1]), TagItem[3]));
+
+      if (Pos(',' + AnsiUpperCase(Trim(TagItem[0])) + ',', ExceptTag) = 0)
+        and (LeftStr(TagItem[0], 2) <> '<?')
+        and (LeftStr(TagItem[0], 2) <> '<!')
+        then
+        ChildTree := CheckParent(ChildTree.Child[ChildIndex], TagItem[3]);
+
+      if TagItem[2] <> '' then
+      begin
+        ChildTree.Child.Add(TDomTreeNode.Create(ChildTree.Owner, ChildTree, '', '', nil, '', TagItem[2]));
+        if ChildTree.FText.IsEmpty then
+          if not StartsText('<', TagItem[2]) then
+            ChildTree.FText := Trim(TagItem[2]);
+      end;
+    end;
   end;
-// ***************************  START PARSE HTML*************************
+
 begin
-   RegExHTML:=nil;
-   RegExTag:=nil;
+  RegExHTML := nil;
+  RegExTag := nil;
   try
     HtmlUtf8 := HtmlTxt;
-    RegExHTML := TPerlRegEx.create;
-    RegExTag := TPerlRegEx.create;
-    ErrParseHTML:=0;
+    RegExHTML := TPerlRegEx.Create;
+    RegExTag := TPerlRegEx.Create;
+    ErrParseHTML := 0;
     RegExHTML.Options := [preCaseLess, preMultiLine, preSingleLine];
-    ChildTree := self;
+    ChildTree := Self;
     with RegExHTML do
     begin
-
-
-      // *********RegExp for parsing HTML**************
-      // (<title>.*</title>[^<]*) - title
-      // (<\!--.+?-->[^<]*)       - comment
+      // (<title>.*</title>[^<]*)   - title
+      // (<\!--.+?-->[^<]*)         - comment
       // (<script.*?</script>[^<]*) - script
-      // (<[^>]+>[^<]*)           - all remaining  tags
-      // [^<]*                   - text
-      RegExException :='(<PLAINTEXT>.*?</PLAINTEXT>[^<]*)|'+
-                       '(<title>.*?</title>[^<]*)|'+
-                       '(<xmp>.*?</xmp>[^<]*)|'+
-                       '(<script.*?</script>[^<]*)|'+
-                       '(<textarea.*?</textarea>[^<]*)|'+
-//                       '(<pre.*?</pre>[^<]*)|'+
-                       '(<!--.+?-->[^<]*)|';
+      // (<[^>]+>[^<]*)             - all remaining  tags
+      // [^<]*                      - text
+      RegExException := '(<PLAINTEXT>.*?</PLAINTEXT>[^<]*)|' +
+        '(<title>.*?</title>[^<]*)|' +
+        '(<xmp>.*?</xmp>[^<]*)|' +
+        '(<script.*?</script>[^<]*)|' +
+        '(<textarea.*?</textarea>[^<]*)|' +
+      //'(<pre.*?</pre>[^<]*)|'+
+          '(<!--.+?-->[^<]*)|';
       RegEx := RegExException + '(<[^>]+>[^<]*)'; // all teg and text
       Subject := HtmlUtf8;
       if Match then
@@ -884,27 +855,22 @@ begin
           // *****Start Check Parsing HTML Error************
           if MatchedOffset - prev > 0 then
           begin
-            Owner.fParseErr.Add(IntToStr(ErrParseHTML) + '- Check error found after HTML parsing');
-            inc(ErrParseHTML)
+            Owner.FParseErr.Add(IntToStr(ErrParseHTML) + '- Check error found after HTML parsing');
+            Inc(ErrParseHTML)
           end;
           prev := MatchedOffset + MatchedLength;
           // *****End Check Parsing HTML  Error************
         end;
-        // ***********End RegExp match cycle************
       end
       else
-        raise Exception.create('Input text not contain HTML tags');
-      // *************End RegExp match ************
+        raise Exception.Create('Input text not contain HTML tags');
     end;
-
-  Finally
+  finally
     RegExHTML.Free;
     RegExTag.Free;
-    if Owner.FCount>0 then
-    result := True
-    else result := False ;
+    Result := Owner.FCount > 0;
   end;
-
 end;
 
 end.
+
