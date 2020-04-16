@@ -32,7 +32,7 @@ object Form1: TForm1
     Top = 0
     Width = 998
     Height = 672
-    ActivePage = TabSheet1
+    ActivePage = XPath
     Align = alClient
     TabOrder = 1
     object TabSheet1: TTabSheet
@@ -98,7 +98,6 @@ object Form1: TForm1
             Indent = 19
             MultiSelect = True
             ParentShowHint = False
-            ReadOnly = True
             RightClickSelect = True
             ShowHint = False
             TabOrder = 0

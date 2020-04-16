@@ -3,7 +3,7 @@ program DemoParser;
 uses
   Vcl.Forms,
   main in 'main.pas' {Form1},
-  parser in '..\parser.pas';
+  HTML.Parser in '..\HTML.Parser.pas';
 
 {$R *.res}
 

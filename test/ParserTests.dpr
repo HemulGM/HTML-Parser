@@ -17,7 +17,7 @@ program DemoParserTests;
 uses
   DUnitTestRunner,
   Testparser in 'Testparser.pas',
-  parser in '..\parser.pas';
+  HTML.Parser in '..\HTML.Parser.pas';
 
 {$R *.RES}
 
