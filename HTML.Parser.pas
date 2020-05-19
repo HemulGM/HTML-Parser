@@ -380,6 +380,8 @@ var
   end;
 
 begin
+  ListNode.Clear;
+  ListValue.Clear;
   PrmXPath := nil;
   RegExXPath := nil;
   RegExXPathElmt := nil;
@@ -700,7 +702,7 @@ var
             Result[1] := LeftStr(Trim(RegExTag.Groups[2]), Length(Trim(RegExTag.Groups[2])) - 1)
           else
             Result[1] := Trim(RegExTag.Groups[2]);
-        Result[2] := Trim(RegExTag.Groups[3]);
+        Result[2] := RegExTag.Groups[3];
       end
       else
         Result[0] := Trim(aTxt);
@@ -814,9 +816,9 @@ var
       if TagItem[2] <> '' then
       begin
         ChildTree.Child.Add(TDomTreeNode.Create(ChildTree.Owner, ChildTree, '', '', nil, '', TagItem[2]));
-        if ChildTree.FText.IsEmpty then
+        {if ChildTree.FText.IsEmpty then
           if not StartsText('<', TagItem[2]) then
-            ChildTree.FText := Trim(TagItem[2]);
+            ChildTree.FText := Trim(TagItem[2]);  }
       end;
     end;
   end;
