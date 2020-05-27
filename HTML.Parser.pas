@@ -48,6 +48,7 @@ type
     property Count: Integer read FCount;
     property RootNode: TDomTreeNode read FRootNode;
     property ParseErr: TStringList read FParseErr;
+    class function FromString(Value: string): TDomTree;
   end;
 
   TDomTreeNode = class(TObject)
@@ -89,6 +90,8 @@ type
     /// <param name="ListNode: TNodeList">return TNodeList of TDomTreeNode</param>
     function FindTagOfIndex(NameTag: string; Index: integer; AnyLevel: Boolean; ListNode: TDomTreeNodeList): Boolean;
     function FindPath(Path: string; ListNode: TDomTreeNodeList; ListValue: TStringList): Boolean;
+    function FindPathAttributes(Path, Attrib: string): TArray<string>;
+    function FindPathOne(Path: string): TDomTreeNode;
     function GetAttrValue(AttrName: string): string;
     function GetComment(Index: Integer): string;
     function GetTagName: string;
@@ -108,7 +111,32 @@ type
 
   TPrmRecList = TList<TPrmRec>;
 
+function Get(Url: string): string;
+
 implementation
+
+uses
+  System.Net.HttpClient;
+
+function Get(Url: string): string;
+var
+  Stream: TStringStream;
+  HTTP: THTTPClient;
+begin
+  Stream := TStringStream.Create;
+  HTTP := THTTPClient.Create;
+  HTTP.HandleRedirects := True;
+  try
+    try
+      if HTTP.Get(Url, Stream).StatusCode = 200 then
+        Result := UTF8ToString(Stream.DataString);
+    finally
+      Stream.Free;
+      HTTP.Free;
+    end;
+  except
+  end;
+end;
 
 { TDomTree }
 
@@ -124,6 +152,12 @@ begin
   FreeAndNil(FParseErr);
   FreeAndNil(FRootNode);
   inherited;
+end;
+
+class function TDomTree.FromString(Value: string): TDomTree;
+begin
+  Result := TDomTree.Create;
+  Result.RootNode.Parse(Value);
 end;
 
 { TDomTreeNode }
@@ -309,6 +343,39 @@ begin
   Result := False;
   if FindChildTagOfIndex(Self).Count > 0 then
     Result := True;
+end;
+
+function TDomTreeNode.FindPathAttributes(Path, Attrib: string): TArray<string>;
+begin
+  var Nodes := TDomTreeNodeList.Create;
+  var Values := TStringList.Create;
+  try
+    if FindPath(Path, Nodes, Values) then
+    begin
+      SetLength(Result, Nodes.Count);
+      for var i := 0 to Nodes.Count - 1 do
+        Result[i] := Nodes[i].Attributes[Attrib].Trim(['"']);
+    end;
+  finally
+    Nodes.Free;
+    Values.Free;
+  end;
+end;
+
+function TDomTreeNode.FindPathOne(Path: string): TDomTreeNode;
+begin
+  var Nodes := TDomTreeNodeList.Create;
+  var Values := TStringList.Create;
+  try
+    if FindPath(Path, Nodes, Values) then
+    begin
+      if Nodes.Count > 0 then
+        Result := Nodes[0];
+    end;
+  finally
+    Nodes.Free;
+    Values.Free;
+  end;
 end;
 
 function TDomTreeNode.FindPath(Path: string; ListNode: TDomTreeNodeList; ListValue: TStringList): Boolean;
