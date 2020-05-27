@@ -32,7 +32,7 @@ object Form1: TForm1
     Top = 0
     Width = 998
     Height = 672
-    ActivePage = XPath
+    ActivePage = TabSheet1
     Align = alClient
     TabOrder = 1
     object TabSheet1: TTabSheet
@@ -452,5 +452,15 @@ object Form1: TForm1
     SSLOptions.VerifyDepth = 0
     Left = 880
     Top = 144
+  end
+  object HTTPClient1: TNetHTTPClient
+    Asynchronous = False
+    ConnectionTimeout = 60000
+    ResponseTimeout = 60000
+    HandleRedirects = True
+    AllowCookies = True
+    UserAgent = 'Embarcadero URI Client/1.0'
+    Left = 589
+    Top = 169
   end
 end

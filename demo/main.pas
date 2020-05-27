@@ -6,7 +6,8 @@ uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics, Vcl.Controls,
   Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, IdBaseComponent, System.Contnrs, System.StrUtils, HTML.Parser, IdComponent,
   IdTCPConnection, IdTCPClient, IdHTTP, Vcl.ComCtrls, Vcl.ExtCtrls, Vcl.Buttons, IdIOHandler, IdIOHandlerSocket,
-  IdIOHandlerStack, IdSSL, IdSSLOpenSSL;
+  IdIOHandlerStack, IdSSL, IdSSLOpenSSL, System.Net.URLClient,
+  System.Net.HttpClient, System.Net.HttpClientComponent;
 
 type
   TForm1 = class(TForm)
@@ -51,6 +52,7 @@ type
     Memo2: TMemo;
     IdHTTP2: TIdHTTP;
     IdSSLIOHandlerSocketOpenSSL2: TIdSSLIOHandlerSocketOpenSSL;
+    HTTPClient1: TNetHTTPClient;
     procedure ParseBtClick(Sender: TObject);
     procedure TabSheet1Show(Sender: TObject);
     procedure XPathShow(Sender: TObject);
@@ -203,7 +205,7 @@ begin
     {HtmlTxtList:=TStringList.Create;
     HtmlTxtList.LoadFromFile('lotto.html');
     HtmlTxt:=HtmlTxtList.Text;}
-    HtmlTxt := IdHTTP1.Get(Edit1.Text);
+    HtmlTxt := HTTPClient1.Get(Edit1.Text).ContentAsString;
 
     Memo1.Lines.Add('End time GET- ' + DateTimeToStr(Now));
 
