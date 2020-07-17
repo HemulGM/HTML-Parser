@@ -346,14 +346,18 @@ begin
 end;
 
 function TDomTreeNode.FindPathAttributes(Path, Attrib: string): TArray<string>;
+var
+  Nodes: TDomTreeNodeList;
+  Values: TStringList;
+  i: Integer;
 begin
-  var Nodes := TDomTreeNodeList.Create;
-  var Values := TStringList.Create;
+  Nodes := TDomTreeNodeList.Create;
+  Values := TStringList.Create;
   try
     if FindPath(Path, Nodes, Values) then
     begin
       SetLength(Result, Nodes.Count);
-      for var i := 0 to Nodes.Count - 1 do
+      for i := 0 to Nodes.Count - 1 do
         Result[i] := Nodes[i].Attributes[Attrib].Trim(['"']);
     end;
   finally
@@ -363,9 +367,13 @@ begin
 end;
 
 function TDomTreeNode.FindPathOne(Path: string): TDomTreeNode;
+var
+  Nodes: TDomTreeNodeList;
+  Values: TStringList;
 begin
-  var Nodes := TDomTreeNodeList.Create;
-  var Values := TStringList.Create;
+  Nodes := TDomTreeNodeList.Create;
+  Values := TStringList.Create;
+  Result := nil;
   try
     if FindPath(Path, Nodes, Values) then
     begin
